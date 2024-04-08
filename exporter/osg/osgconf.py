@@ -65,6 +65,7 @@ class Config(object):
         self.defaultattr("bake_frame_step", 1)
         self.defaultattr("arm_rest", False)
         self.defaultattr("osgconv_to_ive", False)
+        self.defaultattr("scale_factor", 1)
         osgconv_util = "osgconv"
         if sys.platform == 'win32':
             osgconv_util += ".exe"

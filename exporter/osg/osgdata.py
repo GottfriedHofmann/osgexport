@@ -59,12 +59,12 @@ def createAnimationUpdate(blender_object, callback, rotation_mode, prefix="", ze
     backup_frame = scene.frame_current
     scene.frame_set(0)
     blender_object.update_tag(refresh={'OBJECT'})
-    scene.update()
+    bpy.context.view_layer.update()
 
     lcl_transform = blender_object.matrix_local.copy()
 
     scene.frame_set(backup_frame)
-    scene.update()
+    bpy.context.view_layer.update()
 
     if blender_object.animation_data:
         action = blender_object.animation_data.action
@@ -241,21 +241,21 @@ class Export(object):
             self.items.append(item)
 
     def evaluateGroup(self, blender_object, item, rootItem):
-        if blender_object.dupli_group is None or len(blender_object.dupli_group.objects) == 0:
+        if blender_object.instance_collection is None or len(blender_object.instance_collection.objects) == 0:
             return
 
-        Log("resolving {} for {} offset {}".format(blender_object.dupli_group.name,
+        Log("resolving {} for {} offset {}".format(blender_object.instance_collection.name,
                                                    blender_object.name,
-                                                   blender_object.dupli_group.dupli_offset))
+                                                   blender_object.instance_collection.instance_offset))
 
         group = MatrixTransform()
-        group.matrix = Matrix.Translation(-blender_object.dupli_group.dupli_offset)
+        group.matrix = Matrix.Translation(-blender_object.instance_collection.instance_offset)
         item.children.append(group)
 
         # for group we disable the only visible
         config_visible = self.config.only_visible
         self.config.only_visible = False
-        for o in blender_object.dupli_group.objects:
+        for o in blender_object.instance_collection.objects:
             Log("object {}".format(o))
             self.exportChildrenRecursively(o, group, rootItem)
         self.config.only_visible = config_visible
@@ -266,8 +266,8 @@ class Export(object):
             return blender_object.name
         return "no name"
 
-    def isObjectVisible(self, blender_object):
-        return blender_object.is_visible(self.config.scene) or not self.config.only_visible
+    # def isObjectVisible(self, blender_object):
+    #    return blender_object.visible_get(bpy.context.view_layer) or not self.config.only_visible
 
     def createAnimationsObject(self,
                                osg_object,
@@ -279,7 +279,6 @@ class Export(object):
 
         if not config.export_anim or len(bpy.data.actions) == 0:
             return None
-
         has_action = blender_object.animation_data and hasAction(blender_object)
         has_constraints = hasSolidConstraints(blender_object) or hasExternalBoneConstraints(blender_object)
         has_morph = hasShapeKeysAnimation(blender_object)
@@ -341,7 +340,7 @@ class Export(object):
             matrix = getDeltaMatrixFrom(blender_object.parent, blender_object)
             osg_object = MatrixTransform()
             osg_object.setName(blender_object.name)
-            osg_object.matrix = matrix
+            osg_object.matrix = matrix.copy()
             lightItem = self.createLight(blender_object)
             self.createAnimationsObject(osg_object, blender_object, self.config,
                                         createAnimationUpdate(blender_object,
@@ -409,7 +408,8 @@ class Export(object):
         # Check if the object is visible. The visibility will be used for meshes and lights
         # to determine if we keep it or not. Other objects have to be taken into account even if they
         # are not visible as they can be used as modifiers (avoiding some crashs during the export)
-        is_visible = self.isObjectVisible(blender_object)
+        # is_visible = blender_object.visible_get(bpy.context.view_layer) or not self.config.only_visible
+        is_visible = blender_object.visible_get() or not self.config.only_visible
         Log("")
 
         osg_object = None
@@ -422,7 +422,7 @@ class Export(object):
             Log("Parsing object '{}' of type {}".format(blender_object.name, blender_object.type))
             if blender_object.type == "ARMATURE":
                 osg_object = parseArmature(blender_object)
-            elif blender_object.type == "LAMP" and is_visible:
+            elif blender_object.type == "LIGHT" and is_visible:
                 osg_object = parseLight(blender_object)
             elif blender_object.type in ['MESH', 'EMPTY', 'CAMERA']:
                 osg_object = parseBlenderObject(blender_object, is_visible)
@@ -512,7 +512,7 @@ class Export(object):
             renamed_count = checkNameEncoding(bpy.data.images, 'image', renamed_count)
             renamed_count = checkNameEncoding(bpy.data.curves, 'curve', renamed_count)
             renamed_count = checkNameEncoding(bpy.data.cameras, 'camera', renamed_count)
-            renamed_count = checkNameEncoding(bpy.data.lamps, 'lamp', renamed_count)
+            renamed_count = checkNameEncoding(bpy.data.lights, 'light', renamed_count)
             renamed_count = checkNameEncoding(bpy.data.metaballs, 'metaball', renamed_count)
 
             if renamed_count:
@@ -522,7 +522,7 @@ class Export(object):
             ''' Duplicates vertex instances and makes them real'''
             unselectAllObjects()
             # Select all objects that use dupli_vertex mode
-            selectObjects([obj for obj in scene.objects if obj.dupli_type == 'VERTS' and obj.children])
+            selectObjects([obj for obj in scene.objects if obj.instance_type == 'VERTS' and obj.children])
 
             # Duplicate all instances into real objects
             if bpy.context.selected_objects:
@@ -546,7 +546,7 @@ class Export(object):
     def process(self):
         self.preProcess()
 
-        # Object.resetWriter()
+        #Object.resetWriter()
         self.scene_name = self.config.scene.name
         Log("current scene {}".format(self.scene_name))
         if self.config.validFilename() is False:
@@ -632,7 +632,7 @@ class Export(object):
             lm = LightModel()
             lm.ambient = (1.0, 1.0, 1.0, 1.0)
             if self.config.scene.world is not None:
-                amb = self.config.scene.world.ambient_color
+                amb = self.config.scene.world.color
                 lm.ambient = (amb[0], amb[1], amb[2], 1.0)
 
             st.attributes.append(lm)
@@ -851,7 +851,7 @@ class Export(object):
         return geode
 
     def createLight(self, obj):
-        converter = BlenderLightToLightSource(lamp=obj)
+        converter = BlenderLightToLightSource(light=obj)
         lightsource = converter.convert()
         self.lights[lightsource.name] = lightsource  # will be used to index lightnum at the end
         return lightsource
@@ -859,83 +859,86 @@ class Export(object):
 
 class BlenderLightToLightSource(object):
     def __init__(self, *args, **kwargs):
-        self.object = kwargs["lamp"]
-        self.lamp = self.object.data
+        self.object = kwargs["light"]
+        self.light = self.object.data
 
     def convert(self):
         ls = LightSource()
         ls.setName(self.object.name)
         light = ls.light
-        energy = self.lamp.energy
+        energy = self.light.energy
         light.ambient = (1.0, 1.0, 1.0, 1.0)
 
-        if self.lamp.use_diffuse:
-            light.diffuse = (self.lamp.color[0] * energy,
-                             self.lamp.color[1] * energy,
-                             self.lamp.color[2] * energy,
-                             1.0)
+        # Diffuse_factor is only available starting from 2.9x
+        if bpy.app.version[0] >= 2 and bpy.app.version[1] >= 93:
+            if self.light.diffuse_factor:
+                light.diffuse = (self.light.color[0] * energy,
+                                self.light.color[1] * energy,
+                                self.light.color[2] * energy,
+                                1.0)
         else:
             light.diffuse = (0, 0, 0, 1.0)
 
-        if self.lamp.use_specular:
+        if self.light.specular_factor:
             light.specular = (energy, energy, energy, 1.0)  # light.diffuse
         else:
             light.specular = (0, 0, 0, 1.0)
 
         light.getOrCreateUserData().append(StringValueObject("source", "blender"))
         light.getOrCreateUserData().append(StringValueObject("Energy", str(energy)))
-        light.getOrCreateUserData().append(StringValueObject("Color", "[{}, {}, {}]".format(self.lamp.color[0],
-                                                                                            self.lamp.color[1],
-                                                                                            self.lamp.color[2])))
+        light.getOrCreateUserData().append(StringValueObject("Color", "[{}, {}, {}]".format(self.light.color[0],
+                                                                                            self.light.color[1],
+                                                                                            self.light.color[2])))
 
-        if self.lamp.use_diffuse:
-            light.getOrCreateUserData().append(StringValueObject("UseDiffuse", "true"))
+        if bpy.app.version[0] >= 2 and bpy.app.version[1] >= 93:
+            if self.light.diffuse_factor:
+                light.getOrCreateUserData().append(StringValueObject("UseDiffuse", "true"))
         else:
             light.getOrCreateUserData().append(StringValueObject("UseDiffuse", "false"))
 
-        if self.lamp.use_specular:
+        if self.light.specular_factor:
             light.getOrCreateUserData().append(StringValueObject("UseSpecular", "true"))
         else:
             light.getOrCreateUserData().append(StringValueObject("UseSpecular", "false"))
 
-        light.getOrCreateUserData().append(StringValueObject("Distance", str(self.lamp.distance)))
-        if self.lamp.type == 'POINT' or self.lamp.type == "SPOT":
-            light.getOrCreateUserData().append(StringValueObject("FalloffType", str(self.lamp.falloff_type)))
-            light.getOrCreateUserData().append(StringValueObject("UseSphere", str(self.lamp.use_sphere).lower()))
+        light.getOrCreateUserData().append(StringValueObject("Distance", str(self.light.distance)))
+        if self.light.type == 'POINT' or self.light.type == "SPOT":
+            light.getOrCreateUserData().append(StringValueObject("FalloffType", str(self.light.falloff_type)))
+            # light.getOrCreateUserData().append(StringValueObject("UseSphere", str(self.light.use_sphere).lower()))
 
-        light.getOrCreateUserData().append(StringValueObject("Type", str(self.lamp.type)))
+        light.getOrCreateUserData().append(StringValueObject("Type", str(self.light.type)))
 
-        # Lamp', 'Sun', 'Spot', 'Hemi', 'Area', or 'Photon
-        if self.lamp.type == 'POINT' or self.lamp.type == 'SPOT':
+        # Light', 'Sun', 'Spot', 'Hemi', 'Area', or 'Photon
+        if self.light.type == 'POINT' or self.light.type == 'SPOT':
             # position light
             # Note DW - the distance may not be necessary anymore (blender 2.5)
             light.position = (0, 0, 0, 1)  # put light to vec3(0) it will inherit the position from parent transform
-            light.linear_attenuation = self.lamp.linear_attenuation / self.lamp.distance
-            light.quadratic_attenuation = self.lamp.quadratic_attenuation / self.lamp.distance
+            light.linear_attenuation = self.light.linear_attenuation / self.light.distance
+            light.quadratic_attenuation = self.light.quadratic_attenuation / self.light.distance
 
-            if self.lamp.falloff_type == 'CONSTANT':
+            if self.light.falloff_type == 'CONSTANT':
                 light.quadratic_attenuation = 0
                 light.linear_attenuation = 0
 
-            if self.lamp.falloff_type == 'INVERSE_SQUARE':
+            if self.light.falloff_type == 'INVERSE_SQUARE':
                 light.constant_attenuation = 0
                 light.linear_attenuation = 0
 
-            if self.lamp.falloff_type == 'INVERSE_LINEAR':
+            if self.light.falloff_type == 'INVERSE_LINEAR':
                 light.constant_attenuation = 0
                 light.quadratic_attenuation = 0
 
-        elif self.lamp.type == 'SUN':
+        elif self.light.type == 'SUN':
             light.position = (0, 0, 1, 0)  # put light to 0 it will inherit the position from parent transform
 
-        if self.lamp.type == 'SPOT':
-            light.spot_cutoff = math.degrees(self.lamp.spot_size * .5)
+        if self.light.type == 'SPOT':
+            light.spot_cutoff = math.degrees(self.light.spot_size * .5)
             if light.spot_cutoff > 90:
                 light.spot_cutoff = 180
-            light.spot_exponent = 128.0 * self.lamp.spot_blend
+            light.spot_exponent = 128.0 * self.light.spot_blend
 
-            light.getOrCreateUserData().append(StringValueObject("SpotSize", str(self.lamp.spot_size)))
-            light.getOrCreateUserData().append(StringValueObject("SpotBlend", str(self.lamp.spot_blend)))
+            light.getOrCreateUserData().append(StringValueObject("SpotSize", str(self.light.spot_size)))
+            light.getOrCreateUserData().append(StringValueObject("SpotBlend", str(self.light.spot_blend)))
 
         return ls
 
@@ -1416,24 +1419,33 @@ use an uv layer '{}' that does not exist on the mesh '{}'; using the first uv ch
         else:
             geom = Geometry()
 
-        geom.groups = {}
-        if bpy.app.version[0] >= 2 and bpy.app.version[1] >= 63:
-            faces = mesh.tessfaces
-            uv_textures = mesh.tessface_uv_textures
-            vertex_colors = mesh.tessface_vertex_colors.active
-        else:
-            faces = mesh.faces
-            uv_textures = mesh.uv_textures
+        geom.groups = {}        
+        
+        # Get all geometry as triangles
+        mesh.calc_loop_triangles()
+        faces = mesh.loop_triangles
+        
+        # When we don't want to force triangles but also export quads or polylines:
+        #faces = mesh.polygons
+        
+        uv_textures = mesh.uv_layers
+        vertex_colors = mesh.vertex_colors.active
+        mesh.calc_normals_split()
+        
+        # Check if the mesh has any faces
         if (len(faces) == 0):
             Log("object {} has no faces, so no materials".format(self.object.name))
             return None
+        
+        # Check if the mesh has any materials
         if len(mesh.materials) and mesh.materials[material_index] is not None:
             material_name = mesh.materials[material_index].name
             title = "mesh {} with material {}".format(self.object.name, material_name)
         else:
             title = "mesh {} without material".format(self.object.name)
         Log(title)
-
+        
+        # Check some Armature modifier stuff
         arm_modifiers = [mod for mod in self.object.modifiers if mod.type == 'ARMATURE' and mod.object]
         armature_name = ('_' + str(arm_modifiers[-1].object.name)) if arm_modifiers else ''
         if self.object.vertex_groups and self.object.parent \
@@ -1441,12 +1453,12 @@ use an uv layer '{}' that does not exist on the mesh '{}'; using the first uv ch
            and not self.object.parent_bone:
             armature_name = '_' + str(self.object.parent.name)
 
+        # Prepare empty arrays of data we'll populate
         collected_faces = []
         morph_map = []
         osg_vertexes = VertexArray()
         osg_normals = NormalArray()
         osg_colors = ColorArray()
-
         osg_uvs = OrderedDict()
         lines = DrawElements()
         lines.type = "GL_LINES"
@@ -1463,18 +1475,35 @@ use an uv layer '{}' that does not exist on the mesh '{}'; using the first uv ch
         vertex_index_map = {}
 
         def get_vertex_key(faceindex, facevertexindex):
+            # 'faceindex' is the current face
+            # 'facevertexindex' is the current vertex of the current face
+            
+            # we are inputing an index of a face-corner per currently handled face.
+            # However we need to get the index of this face-corner within the mesh
+            # and not relative to the face. Blender calls face_corners loops.
+            loop = mesh.loop_triangles[faceindex].loops[facevertexindex]             
+            # When we don't want to force triangles but also export quads or polylines:
+            # loop = mesh.polygons[faceindex].loop_indices[facevertexindex]
+            
+            # Get normals
             if face.use_smooth:
-                normal = list(mesh.vertices[face.vertices[facevertexindex]].normal)
+                if mesh.has_custom_normals:
+                    normal = list(mesh.loops[loop].normal)
+                else:
+                    normal = list(mesh.vertices[face.vertices[facevertexindex]].normal)
             else:
                 normal = list(face.normal)
 
+            # Get VColors
             if vertex_colors:
-                vcolors = tuple(getattr(vertex_colors.data[faceindex], 'color{}'.format(facevertexindex + 1)))
+                vcolors = tuple(list(vertex_colors.data[loop].color[:3]))
             else:
                 vcolors = tuple()
-
-            texcoords = [tuple(truncateVector(list(uv.data[faceindex].uv[facevertexindex])))
-                         for uv in mesh.tessface_uv_textures]
+            
+            # Get UV coordinates of the current vertex            
+            texcoords = []            
+            for uv in mesh.uv_layers:
+                texcoords.append(tuple(truncateVector(list(uv.data[loop].uv))))
             return (face.vertices[facevertexindex], tuple(truncateVector(normal)), tuple(texcoords), vcolors)
 
         for face in faces:
@@ -1484,17 +1513,24 @@ use an uv layer '{}' that does not exist on the mesh '{}'; using the first uv ch
             for facevertexindex, vert_index in enumerate(face.vertices):
                 # Uvs and colors are per face and not per vertexes, so need to deduplicate
                 # this here using keys.
-                # A key is build as (vertexIndex, normal, texcoords={},vertex_colors)
+                # A key is build as (vertexIndex, normal, texcoords={}, vertex_colors)
                 key = get_vertex_key(face.index, facevertexindex)
                 if key not in vertex_index_map:
                     newindex = len(osg_vertexes.getArray())
                     vertex_index_map[key] = newindex
                     morph_map.append(vert_index)
-                    uvs = []
+                    uvs = [] #TODO: Remove?
 
-                    for uv in mesh.tessface_uv_textures:
-                        uvs.append(uv.data[face.index].uv[facevertexindex])
+                    # for uv in mesh.tessface_uv_textures:
+                    #     uvs.append(uv.data[face.index].uv[facevertexindex])
+                    # Vertex 3D positions, multiplied by the exporter's scale factor
+                    osg_vertexes.getArray().append(list(mesh.vertices[vert_index].co * self.config.scale_factor))
 
+                    
+                    # Normals
+                    osg_normals.getArray().append(key[1])
+
+                    # Vertex groups
                     if self.object.vertex_groups:
                         for vertex_group in mesh.vertices[vert_index].groups:
                             influence = [self.object.vertex_groups[vertex_group.group].name, vertex_group.weight]
@@ -1508,12 +1544,12 @@ use an uv layer '{}' that does not exist on the mesh '{}'; using the first uv ch
                                 else:
                                     vgroups[influence[0]].vertexes.append((newindex, vertex_group.weight))
 
-                    osg_normals.getArray().append(key[1])
-                    osg_vertexes.getArray().append(list(mesh.vertices[vert_index].co))
-                    # beware this enumerate, order can be different ?
-                    for idx, uv in enumerate(mesh.tessface_uv_textures):
-                        osg_uvs.setdefault(uv.name, TexCoordArray()).getArray().append(key[2][idx])
-
+                    # osg_vertexes.getArray().append(list(mesh.vertices[vert_index].co))
+                    # UV coordinates - beware this enumerate, order can be different? 
+                    for idx, uv_layer in enumerate(mesh.uv_layers):
+                        osg_uvs.setdefault(uv_layer.name, TexCoordArray()).getArray().append(key[2][idx])
+                    
+                    # Vertex colors    
                     if vertex_colors:
                         col = key[len(key) - 1]
                         osg_colors.getArray().append([col[0], col[1], col[2]])
@@ -1568,9 +1604,10 @@ use an uv layer '{}' that does not exist on the mesh '{}'; using the first uv ch
         stateset = self.createStateSet(material_index, mesh)
         if stateset is not None:
             geom.stateset = stateset
-
-        if len(mesh.materials) > 0 and mesh.materials[material_index] is not None:
-            self.adjustUVLayerFromMaterial(geom, mesh.materials[material_index], uv_textures)
+        
+        # Was used in 2.79 but not needed for OpenMW needs
+        #if len(mesh.materials) > 0 and mesh.materials[material_index] is not None:
+            #self.adjustUVLayerFromMaterial(geom, mesh.materials[material_index], uv_textures)
 
         end_title = '-' * len(title)
         Log(end_title)
@@ -1582,7 +1619,8 @@ use an uv layer '{}' that does not exist on the mesh '{}'; using the first uv ch
 
     def process(self, mesh):
         if bpy.app.version[0] >= 2 and bpy.app.version[1] >= 63:
-            mesh.update(calc_tessface=True)  # Generates faces of 3 or 4 vertices
+            # mesh.update(calc_tessface=True)  # Generates faces of 3 or 4 vertices
+            mesh.calc_loop_triangles()  # Generates faces of 3
 
         geometry_list = []
         material_index = 0

@@ -295,6 +295,13 @@ class OSGGUI(bpy.types.Operator, ExportHelper):
         name="Zero world translations",
         default=False
         )
+        
+    SCALE_FACTOR : FloatProperty(
+        name="Scale",
+        description="Scale all data",
+        min=0.01, max=1000.0,
+        default=1.0,
+        )
 
     def draw(self, context):
         pass
@@ -339,6 +346,7 @@ class OSGGUI(bpy.types.Operator, ExportHelper):
         self.VIEWER_PATH = self.config.viewer_path
         self.TEXTURE_PREFIX = self.config.texture_prefix
         self.EXPORT_ALL_SCENES = self.config.export_all_scenes
+        self.SCALE_FACTOR = self.config.scale_factor
 
         if bpy.data.filepath in self.config.history:
             self.filepath = self.config.history[bpy.data.filepath]
@@ -378,6 +386,7 @@ class OSGGUI(bpy.types.Operator, ExportHelper):
         self.config.osgconv_embed_textures = self.OSGCONV_EMBED_TEXTURES
         self.config.export_all_scenes = self.EXPORT_ALL_SCENES
         self.config.osgconv_cleanup = self.OSGCONV_CLEANUP
+        self.config.scale_factor = self.SCALE_FACTOR
 
         try:
             cfg = os.path.join(bpy.utils.user_resource('CONFIG'), "osgExport.cfg")
