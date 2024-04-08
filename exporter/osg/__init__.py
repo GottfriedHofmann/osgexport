@@ -27,7 +27,7 @@ bl_info = {
     "name": "Export OpenSceneGraph format (.osgt)",
     "author": "Cedric Pinson, Jeremy Moles, Peter Amstutz, OpenMW",
     "version": (0, 15, 1),
-    "blender": (2, 7, 6),
+    "blender": (2, 80, 0),
     "api": 36339,
     "location": "File > Export > OSG Model (*.osgt)",
     "description": "Export models and animations for use in OpenSceneGraph",
@@ -271,14 +271,14 @@ class OSGGUI(bpy.types.Operator, ExportHelper):
     
     RUN_VIEWER : BoolProperty(
         name="Run viewer",
-        description="Run viewer after export",
+        description="Run OpenSceneGraph's viewer after export",
         default=False
         )
     
     VIEWER_PATH : StringProperty(
         name="viewer path",
         subtype=FILE_NAME,
-        default=""
+        default="osgviewer"
         )
     
     TEXTURE_PREFIX : StringProperty(
@@ -297,36 +297,7 @@ class OSGGUI(bpy.types.Operator, ExportHelper):
         )
 
     def draw(self, context):
-        layout = self.layout
-
-        layout.row(align=True).label("Author:")
-        layout.row(align=True).prop(self, "AUTHOR", text="")
-        layout.row(align=True).prop(self, "SELECTED")
-        layout.row(align=True).prop(self, "ONLY_VISIBLE")
-        layout.row(align=True).prop(self, "EXPORTANIM")
-        layout.row(align=True).prop(self, "EXPORT_ALL_SCENES")
-        layout.row(align=True).prop(self, "APPLYMODIFIERS")
-        layout.row(align=True).prop(self, "BAKE_ALL")
-        layout.row(align=True).prop(self, "USE_QUATERNIONS")
-        layout.row(align=True).prop(self, "BAKE_CONSTRAINTS")
-        layout.row(align=True).prop(self, "ARMATURE_REST")
-        layout.row(align=True).prop(self, "LOG")
-        layout.row(align=True).prop(self, "JSON_MATERIALS")
-        layout.row(align=True).prop(self, "JSON_SHADERS")
-        layout.row(align=True).prop(self, "ZERO_TRANSLATIONS")
-        layout.row(align=True).prop(self, "ANIMFPS")
-        layout.row(align=True).prop(self, "BAKE_FRAME_STEP")
-        layout.row(align=True).prop(self, "EXPORT_REST")
-        layout.row(align=True).prop(self, "FLOATPRE")
-        layout.row(align=True).prop(self, "INDENT")
-        layout.row(align=True).label("Texture Prefix:")
-        layout.row(align=True).prop(self, "TEXTURE_PREFIX", text="")
-        layout.row(align=True).prop(self, "OSGCONV_TO_IVE")
-        layout.row(align=True).prop(self, "OSGCONV_EMBED_TEXTURES")
-        layout.row(align=True).prop(self, "OSGCONV_CLEANUP")
-        layout.row(align=True).prop(self, "OSGCONV_PATH", text="")
-        layout.row(align=True).prop(self, "RUN_VIEWER")
-        layout.row(align=True).prop(self, "VIEWER_PATH", text="")
+        pass
 
     def invoke(self, context, event):
         print("config is " + bpy.utils.user_resource('CONFIG'))
@@ -430,8 +401,249 @@ class OSGGUI(bpy.types.Operator, ExportHelper):
 
         return {'FINISHED'}
     
+
+# USER INTERFACE ===============================================================================
+# ==============================================================================================
+
+class OSGT_PT_export_include(bpy.types.Panel):
+    bl_space_type = 'FILE_BROWSER'
+    bl_region_type = 'TOOL_PROPS'
+    bl_label = "Include"
+    bl_parent_id = "FILE_PT_operator"
+    
+    @classmethod
+    def poll(cls, context):
+        sfile = context.space_data
+        operator = sfile.active_operator
+            
+        return operator.bl_idname == "OSG_OT_export"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        
+        sfile = context.space_data
+        operator = sfile.active_operator
+        
+        col = layout.column(align =  True)
+        col.prop(operator, 'SELECTED', text="Selected Objects")
+        col.prop(operator, 'ONLY_VISIBLE', text="Visible Objects")
+        #col.prop(operator, 'EXPORT_TEXTURES')
+        #col.prop(operator, 'EXPORT_ALL_SCENES', text="All Scenes")
+        
+        #col = layout.column(align = False)
+        #col.prop(operator, 'AUTHOR')
+
+
+class OSGT_PT_export_transform(bpy.types.Panel):
+    bl_space_type = 'FILE_BROWSER'
+    bl_region_type = 'TOOL_PROPS'
+    bl_label = "Transform"
+    bl_parent_id = "FILE_PT_operator"
+    bl_options = {'DEFAULT_CLOSED'}
+    
+    @classmethod
+    def poll(cls, context):
+        sfile = context.space_data
+        operator = sfile.active_operator
+            
+        return operator.bl_idname == "OSG_OT_export"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        
+        sfile = context.space_data
+        operator = sfile.active_operator
+        
+        col = layout.column(align = False)        
+        # col.prop(operator, 'SCALE_FACTOR')
+
+
+class OSGT_PT_export_geometry(bpy.types.Panel):
+    bl_space_type = 'FILE_BROWSER'
+    bl_region_type = 'TOOL_PROPS'
+    bl_label = "Geometry"
+    bl_parent_id = "FILE_PT_operator"
+    bl_options = {'DEFAULT_CLOSED'}
+    
+    @classmethod
+    def poll(cls, context):
+        sfile = context.space_data
+        operator = sfile.active_operator
+            
+        return operator.bl_idname == "OSG_OT_export"
+    
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        
+        sfile = context.space_data
+        operator = sfile.active_operator
+        
+        col = layout.column(align = True)
+        col.prop(operator, 'APPLYMODIFIERS')
+
+
+class OSGT_PT_export_armature(bpy.types.Panel):
+    bl_space_type = 'FILE_BROWSER'
+    bl_region_type = 'TOOL_PROPS'
+    bl_label = "Armature"
+    bl_parent_id = "FILE_PT_operator"
+    bl_options = {'DEFAULT_CLOSED'}
+    
+    @classmethod
+    def poll(cls, context):
+        sfile = context.space_data
+        operator = sfile.active_operator
+            
+        return operator.bl_idname == "OSG_OT_export"
+    
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        
+        sfile = context.space_data
+        operator = sfile.active_operator
+        
+        col = layout.column(align = True)
+        # col.prop(operator, 'ARMATURE_DEFORM_ONLY')
+        col.prop(operator, 'ARMATURE_REST')
+
+
+class OSGT_PT_export_animation(bpy.types.Panel):
+    bl_space_type = 'FILE_BROWSER'
+    bl_region_type = 'TOOL_PROPS'
+    bl_label = "Animation"
+    bl_parent_id = "FILE_PT_operator"
+    bl_options = {'DEFAULT_CLOSED'}
+    
+    @classmethod
+    def poll(cls, context):
+        sfile = context.space_data
+        operator = sfile.active_operator
+            
+        return operator.bl_idname == "OSG_OT_export"
+
+    def draw_header(self, context):
+        sfile = context.space_data
+        operator = sfile.active_operator
+
+        self.layout.prop(operator, "EXPORTANIM", text="")
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        
+        sfile = context.space_data
+        operator = sfile.active_operator
+        
+        col = layout.column(align = True)        
+        col.prop(operator, 'ANIMFPS', text="Frame Rate")
+        col.prop(operator, 'BAKE_FRAME_STEP', text="Sampling Rate")
+        col.prop(operator, 'BAKE_ALL')
+        col.prop(operator, 'BAKE_CONSTRAINTS')
+        # col.prop(operator, 'USE_QUATERNIONS')
+        # col.prop(operator, 'EXPORT_TEXTKEYS')
+
+
+class OSGT_PT_export_postprocess(bpy.types.Panel):
+    bl_space_type = 'FILE_BROWSER'
+    bl_region_type = 'TOOL_PROPS'
+    bl_label = "Postprocess"
+    bl_parent_id = "FILE_PT_operator"
+    bl_options = {'DEFAULT_CLOSED'}
+    
+    @classmethod
+    def poll(cls, context):
+        sfile = context.space_data
+        operator = sfile.active_operator
+            
+        return operator.bl_idname == "OSG_OT_export"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        
+        sfile = context.space_data
+        operator = sfile.active_operator
+        
+        col = layout.column(align = True)
+        col.prop(operator, 'RUN_VIEWER')
+        col.prop(operator, 'VIEWER_PATH', text="Viewer Path")
+        col.prop(operator, 'OSGCONV_CLEANUP')
+        col.prop(operator, 'OSGCONV_PATH', text="Osgconv Path")
+
+
+class OSGT_PT_export_material(bpy.types.Panel):
+    bl_space_type = 'FILE_BROWSER'
+    bl_region_type = 'TOOL_PROPS'
+    bl_label = "Materials"
+    bl_parent_id = "FILE_PT_operator"
+    bl_options = {'DEFAULT_CLOSED'}
+    
+    @classmethod
+    def poll(cls, context):
+        sfile = context.space_data
+        operator = sfile.active_operator
+            
+        return operator.bl_idname == "OSG_OT_export"
+    
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        
+        sfile = context.space_data
+        operator = sfile.active_operator
+        
+        col = layout.column(align = True)
+
+
+class OSGT_PT_export_extra(bpy.types.Panel):
+    bl_space_type = 'FILE_BROWSER'
+    bl_region_type = 'TOOL_PROPS'
+    bl_label = "Extra"
+    bl_parent_id = "FILE_PT_operator"
+    bl_options = {'DEFAULT_CLOSED'}
+    
+    @classmethod
+    def poll(cls, context):
+        sfile = context.space_data
+        operator = sfile.active_operator
+            
+        return operator.bl_idname == "OSG_OT_export"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        
+        sfile = context.space_data
+        operator = sfile.active_operator
+        
+        col = layout.column(align = False)
+        col.prop(operator, 'INDENT', text="Indent Spacing")
+        col.prop(operator, 'FLOATPRE', text="Data Precision")
+        col.prop(operator, 'LOG')
+
+    
 classes = (
     OSGGUI,
+    OSGT_PT_export_include,
+    # OSGT_PT_export_transform,
+    OSGT_PT_export_geometry,
+    OSGT_PT_export_armature,
+    #OSGT_PT_export_material,
+    OSGT_PT_export_animation,
+    OSGT_PT_export_extra,
+    OSGT_PT_export_postprocess,
 )
 
 
