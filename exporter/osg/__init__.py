@@ -21,23 +21,22 @@ import os
 import bpy
 import pickle
 import argparse
-
+from bpy_extras.io_utils import ExportHelper
 
 bl_info = {
-    "name": "Export OSG format (.osgt)",
-    "author": "Cedric Pinson, Jeremy Moles, Peter Amstutz",
-    "version": (0, 15, 0),
+    "name": "Export OpenSceneGraph format (.osgt)",
+    "author": "Cedric Pinson, Jeremy Moles, Peter Amstutz, OpenMW",
+    "version": (0, 15, 1),
     "blender": (2, 7, 6),
-    "email": "trigrou@gmail.com, jeremy@emperorlinux.com, peter.amstutz@tseboston.com",
     "api": 36339,
     "location": "File > Export > OSG Model (*.osgt)",
     "description": "Export models and animations for use in OpenSceneGraph",
     "warning": "",
     "wiki_url": "https://github.com/cedricpinson/osgexport/wiki",
-    "tracker_url": "http://github.com/cedricpinson/osgexport",
+    "tracker_url": "https://github.com/GottfriedHofmann/osgexport",
     "category": "Import-Export"}
 
-__url__ = bl_info["wiki_url"]
+__url__ = bl_info["tracker_url"]
 __email__ = bl_info["email"]
 __author__ = bl_info["author"]
 __bpydoc__ = bl_info["description"]
@@ -45,7 +44,7 @@ __version__ = bl_info["version"]
 
 sys.path.insert(0, "./")
 BlenderExporterDir = os.getenv("BlenderExporter",
-                               os.path.join(bpy.context.user_preferences.filepaths.script_directory,
+                               os.path.join(bpy.context.preferences.filepaths.script_directory,
                                             "blenderExporter"))
 print("BlenderExporter directory ", BlenderExporterDir)
 sys.path.insert(0, BlenderExporterDir)
@@ -118,9 +117,6 @@ def main():
             config.anim_fps = config.scene.render.fps
         OpenSceneGraphExport(config)
 
-if __name__ == "__main__":
-    main()
-
 
 def menu_export_osg_model(self, context):
     # import os
@@ -128,16 +124,6 @@ def menu_export_osg_model(self, context):
     # default_path = default_path.replace('.', '_')
     # self.layout.operator(OSGGUI.bl_idname, text="OSG Model(.osg)").filepath = default_path
     self.layout.operator(OSGGUI.bl_idname, text="OSG Model(.osgt)")
-
-
-def register():
-    bpy.utils.register_module(__name__)
-    bpy.types.INFO_MT_file_export.append(menu_export_osg_model)
-
-
-def unregister():
-    bpy.utils.unregister_module(__name__)
-    bpy.types.INFO_MT_file_export.remove(menu_export_osg_model)
 
 
 from bpy.props import *
@@ -161,55 +147,154 @@ else:
 class OSGGUI(bpy.types.Operator, ExportHelper):
     '''Export model data to an OpenSceneGraph file'''
     bl_idname = "osg.export"
-    bl_label = "OSG Model"
-
+    bl_label = "Export OSG"
+    bl_options = {"PRESET"}
     filename_ext = ".osgt"
-
+    filter_glob : StringProperty(default="*.osgt", options={"HIDDEN"})
     # List of operator properties, the attributes will be assigned
     # to the class instance from the operator settings before calling.
 
-    AUTHOR = StringProperty(name="Author", description="Name of the Author of this model", default="")
-    SELECTED = BoolProperty(name="Only Export Selected", description="Only export the selected model", default=False)
-    ONLY_VISIBLE = BoolProperty(name="Only Export Visible", description="Only export the visible models",
-                                default=False)
-    INDENT = IntProperty(name="Number of Indent Spaces",
-                         description="Number of Spaces to use for indentation in the model file",
-                         default=3, min=1, max=8)
-    FLOATPRE = IntProperty(name="Floating Point Precision",
-                           description="The Floating Point Precision to use in exported model file",
-                           min=1, max=8, default=4)
-    ANIMFPS = IntProperty(name="Frames Per Second",
-                          description="Number of Frames Per Second to use for exported animations",
-                          min=1, max=300, default=30)
-    EXPORTANIM = BoolProperty(name="Export animations", description="Export animation yes/no",
-                              default=True)
-    APPLYMODIFIERS = BoolProperty(name="Apply Modifiers", description="Apply modifiers before exporting yes/no",
-                                  default=True)
-    LOG = BoolProperty(name="Write log", description="Write log file yes/no", default=False)
-    JSON_MATERIALS = BoolProperty(name="JSON Materials", description="Export materials into JSON userdata.",
+    AUTHOR : StringProperty(
+        name="Author",
+        description="Name of the Author of this model",
+        default=""
+        )
+    
+    SELECTED : BoolProperty(
+        name="Only Export Selected",
+        description="Export selected objects only",
+        default=False
+        )
+    
+    ONLY_VISIBLE : BoolProperty(
+        name="Only Export Visible",
+        description="Export visible objects only",
+        default=False
+        )
+    
+    INDENT : IntProperty(
+        name="Number of Indent Spaces",
+        description="Number of Spaces to use for indentation in the model file",
+        default=3,
+        min=1,
+        max=8
+        )
+    
+    FLOATPRE : IntProperty(
+        name="Floating Point Precision",
+        description="The Floating Point Precision to use in exported model file",
+        default=4,
+        min=1,
+        max=8
+        )
+    
+    ANIMFPS : IntProperty(
+        name="Frames Per Second",
+        description="Number of Frames Per Second to use for exported animations",
+        default=30,
+        min=1,
+        max=300
+        )
+    
+    EXPORTANIM : BoolProperty(
+        name="Export animations",
+        description="Export animation yes/no",
+        default=True
+        )
+    
+    APPLYMODIFIERS : BoolProperty(
+        name="Apply Modifiers",
+        description="Apply modifiers to mesh objects, except for the Armature modifier",
+        default=True
+        )
+    
+    LOG : BoolProperty(
+        name="Write log",
+        description="Write log file",
+        default=False
+        )
+    
+    JSON_MATERIALS : BoolProperty(name="JSON Materials", description="Export materials into JSON userdata.",
                                   default=False)
-    JSON_SHADERS = BoolProperty(name="JSON shaders", description="Export shader graphs into JSON userdata.",
+    JSON_SHADERS : BoolProperty(name="JSON shaders", description="Export shader graphs into JSON userdata.",
                                 default=False)
-    BAKE_ALL = BoolProperty(name="Bake all animations", description="Force baking for all animations",
-                            default=True)
-    USE_QUATERNIONS = BoolProperty(name="Use quaternions", description="Bake rotations using quaternions",
-                                   default=True)
-    BAKE_CONSTRAINTS = BoolProperty(name="Bake Constraints", description="Bake constraints into actions", default=True)
-    BAKE_FRAME_STEP = IntProperty(name="Bake frame step", description="Frame step when baking actions",
-                                  default=1, min=1, max=30)
-    ARMATURE_REST = BoolProperty(name="Export armature in REST pose",
-                                 description="Static armatures are exported in REST mode (instead of POSE)",
-                                 default=False)
-    OSGCONV_TO_IVE = BoolProperty(name="Convert to IVE (uses osgconv)", description="Use osgconv to convert to IVE",
-                                  default=False)
-    OSGCONV_EMBED_TEXTURES = BoolProperty(name="Embed textures in IVE", default=False)
-    OSGCONV_CLEANUP = BoolProperty(name="Cleanup after conversion", default=False)
-    OSGCONV_PATH = StringProperty(name="osgconv path", subtype=FILE_NAME, default="")
-    RUN_VIEWER = BoolProperty(name="Run viewer (viewer path)", description="Run viewer after export", default=False)
-    VIEWER_PATH = StringProperty(name="viewer path", subtype=FILE_NAME, default="")
-    TEXTURE_PREFIX = StringProperty(name="texture prefix", default="")
-    EXPORT_ALL_SCENES = BoolProperty(name="Export all scenes", default=False)
-    ZERO_TRANSLATIONS = BoolProperty(name="Zero world translations", default=False)
+    BAKE_ALL : BoolProperty(
+        name="Bake all animations",
+        description="Force baking for all animations",
+        default=True
+        )
+    
+    USE_QUATERNIONS = BoolProperty(
+        name="Use quaternions",
+        description="Bake rotations using quaternions",
+        default=True
+        )
+    
+    BAKE_CONSTRAINTS : BoolProperty(
+        name="Bake Constraints",
+        description="Bake constraints into actions",
+        default=True
+        )
+    
+    BAKE_FRAME_STEP : IntProperty(
+        name="Bake frame step",
+        description="Frame step when baking actions",
+        default=1,
+        min=1,
+        max=30
+        )
+    ARMATURE_REST : BoolProperty(
+        name="Export armature in REST pose",
+        description="Static armatures are exported in REST mode (instead of POSE)",
+        default=False
+        )
+    OSGCONV_TO_IVE : BoolProperty(
+        name="Convert to IVE (uses osgconv)",
+        description="Use osgconv to convert to IVE",
+        default=False
+        )
+    OSGCONV_EMBED_TEXTURES : BoolProperty(
+        name="Embed textures in the IVE format",
+        default=False
+        )
+    
+    OSGCONV_CLEANUP : BoolProperty(
+        name="Cleanup after conversion",
+        default=False
+        )
+    
+    OSGCONV_PATH : StringProperty(
+        name="osgconv path",
+        subtype=FILE_NAME,
+        default=""
+        )
+    
+    RUN_VIEWER : BoolProperty(
+        name="Run viewer",
+        description="Run viewer after export",
+        default=False
+        )
+    
+    VIEWER_PATH : StringProperty(
+        name="viewer path",
+        subtype=FILE_NAME,
+        default=""
+        )
+    
+    TEXTURE_PREFIX : StringProperty(
+        name="texture prefix",
+        default=""
+        )
+    
+    EXPORT_ALL_SCENES : BoolProperty(
+        name="Export all scenes",
+        default=False
+        )
+    
+    ZERO_TRANSLATIONS : BoolProperty(
+        name="Zero world translations",
+        default=False
+        )
 
     def draw(self, context):
         layout = self.layout
@@ -344,3 +429,28 @@ class OSGGUI(bpy.types.Operator, ExportHelper):
             OpenSceneGraphExport(self.config)
 
         return {'FINISHED'}
+    
+    classes = (
+    OSGGUI,
+)
+
+
+def register():
+    from bpy.utils import register_class
+
+    for c in classes:
+        bpy.utils.register_class(c)
+        
+    bpy.types.TOPBAR_MT_file_export.append(menu_export_osg_model)
+
+
+def unregister():
+    from bpy.utils import unregister_class
+    
+    for c in classes:
+        bpy.utils.unregister_class(c)
+        
+    bpy.types.TOPBAR_MT_file_export.remove(menu_export_osg_model)
+
+if __name__ == "__main__":
+    register()
