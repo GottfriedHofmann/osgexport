@@ -231,7 +231,7 @@ class OSGGUI(bpy.types.Operator, ExportHelper):
         layout.row(align=True).prop(self, "ZERO_TRANSLATIONS")
         layout.row(align=True).prop(self, "ANIMFPS")
         layout.row(align=True).prop(self, "BAKE_FRAME_STEP")
-        layout.row(align=True).prop(self, "EXPORT_REST")
+        # layout.row(align=True).prop(self, "EXPORT_REST")
         layout.row(align=True).prop(self, "FLOATPRE")
         layout.row(align=True).prop(self, "INDENT")
         layout.row(align=True).label("Texture Prefix:")
