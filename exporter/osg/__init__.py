@@ -37,7 +37,7 @@ bl_info = {
     "category": "Import-Export"}
 
 __url__ = bl_info["tracker_url"]
-__email__ = bl_info["email"]
+# __email__ = bl_info["email"]
 __author__ = bl_info["author"]
 __bpydoc__ = bl_info["description"]
 __version__ = bl_info["version"]
@@ -430,7 +430,7 @@ class OSGGUI(bpy.types.Operator, ExportHelper):
 
         return {'FINISHED'}
     
-    classes = (
+classes = (
     OSGGUI,
 )
 
