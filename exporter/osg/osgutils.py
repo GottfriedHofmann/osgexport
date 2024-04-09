@@ -243,7 +243,7 @@ def getDeltaMatrixFromMatrix(parent, child):
     p = parent
     bi = p.copy()
     bi.invert()
-    return bi * child
+    return bi @ child
 
 
 def getChildrenOf(scene, object):
