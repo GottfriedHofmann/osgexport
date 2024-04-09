@@ -135,13 +135,11 @@ except:
     # print("Use new import path")
 
 
-# Property subtype constant changed with r50938
+# Property subtype constant changed with r50938. FOr 2.83 and 2.93 use FILE_NAME always
 if "FILE_PATH" in bpy.types.Property.bl_rna.properties['subtype'].enum_items.keys():
     FILE_NAME = "FILE_PATH"
-elif "FILE_NAME" in bpy.types.Property.bl_rna.properties['subtype'].enum_items.keys():
-    FILE_NAME = "FILE_NAME"
 else:
-    FILE_NAME = "FILENAME"
+    FILE_NAME = "FILE_NAME"
 
 
 class OSGGUI(bpy.types.Operator, ExportHelper):
@@ -271,7 +269,6 @@ class OSGGUI(bpy.types.Operator, ExportHelper):
     
     RUN_VIEWER : BoolProperty(
         name="Run viewer",
-        description="Run OpenSceneGraph's viewer after export",
         default=False
         )
     
