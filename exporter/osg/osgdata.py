@@ -567,7 +567,7 @@ class Export(object):
 
             for obj in self.config.scene.objects:
                 Log("obj {}".format(obj.name))
-                if (self.config.selected == "SELECTED_ONLY_WITH_CHILDREN" and obj.select) or \
+                if (self.config.selected == "SELECTED_ONLY_WITH_CHILDREN" and obj.select_get()) or \
                    (self.config.selected == "ALL" and obj.parent is None):
                     self.exportItemAndChildren(obj)
         finally:
