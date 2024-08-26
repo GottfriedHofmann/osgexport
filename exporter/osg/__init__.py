@@ -25,9 +25,9 @@ from bpy_extras.io_utils import ExportHelper
 
 bl_info = {
     "name": "Export OpenSceneGraph format (.osgt)",
-    "author": "Cedric Pinson, Jeremy Moles, Peter Amstutz, OpenMW",
+    "author": "Cedric Pinson, Jeremy Moles, Peter Amstutz, OpenMW, Gottfried Hofmann",
     "version": (0, 15, 1),
-    "blender": (2, 80, 0),
+    "blender": (2, 93, 0),
     "api": 36339,
     "location": "File > Export > OSG Model (*.osgt)",
     "description": "Export models and animations for use in OpenSceneGraph",
@@ -43,9 +43,22 @@ __bpydoc__ = bl_info["description"]
 __version__ = bl_info["version"]
 
 sys.path.insert(0, "./")
+
+# Check Blender version
+blender_version = bpy.app.version
+
+if blender_version >= (3, 6, 0):
+    # For Blender 3.6 and later
+    script_dirs = bpy.context.preferences.filepaths.script_directories
+    script_dir = script_dirs[0] if script_dirs else ""
+else:
+    # For Blender 3.3 and earlier
+    script_dir = bpy.context.preferences.filepaths.script_directory
+
+# Construct the BlenderExporterDir path
 BlenderExporterDir = os.getenv("BlenderExporter",
-                               os.path.join(bpy.context.preferences.filepaths.script_directory,
-                                            "blenderExporter"))
+                               os.path.join(script_dir, "blenderExporter"))
+
 print("BlenderExporter directory ", BlenderExporterDir)
 sys.path.insert(0, BlenderExporterDir)
 
@@ -132,10 +145,9 @@ try:
     print("Use old import path - your blender is not the latest version")
 except:
     from bpy_extras.io_utils import ExportHelper
-    # print("Use new import path")
 
 
-# Property subtype constant changed with r50938. FOr 2.83 and 2.93 use FILE_NAME always
+# Property subtype constant changed with r50938. For 2.83 and 2.93 use FILE_NAME always
 if "FILE_PATH" in bpy.types.Property.bl_rna.properties['subtype'].enum_items.keys():
     FILE_NAME = "FILE_PATH"
 else:
