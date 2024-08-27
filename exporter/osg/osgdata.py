@@ -901,10 +901,10 @@ class BlenderLightToLightSource(object):
         else:
             light.getOrCreateUserData().append(StringValueObject("UseSpecular", "false"))
 
-        light.getOrCreateUserData().append(StringValueObject("Distance", str(self.light.distance)))
-        if self.light.type == 'POINT' or self.light.type == "SPOT":
-            light.getOrCreateUserData().append(StringValueObject("FalloffType", str(self.light.falloff_type)))
-            # light.getOrCreateUserData().append(StringValueObject("UseSphere", str(self.light.use_sphere).lower()))
+        if bpy.app.version[0] < 4:
+            light.getOrCreateUserData().append(StringValueObject("Distance", str(self.light.distance)))
+            if self.light.type == 'POINT' or self.light.type == "SPOT":
+                light.getOrCreateUserData().append(StringValueObject("FalloffType", str(self.light.falloff_type)))
 
         light.getOrCreateUserData().append(StringValueObject("Type", str(self.light.type)))
 
@@ -913,20 +913,21 @@ class BlenderLightToLightSource(object):
             # position light
             # Note DW - the distance may not be necessary anymore (blender 2.5)
             light.position = (0, 0, 0, 1)  # put light to vec3(0) it will inherit the position from parent transform
-            light.linear_attenuation = self.light.linear_attenuation / self.light.distance
-            light.quadratic_attenuation = self.light.quadratic_attenuation / self.light.distance
+            if bpy.app.version[0] < 4:
+                light.linear_attenuation = self.light.linear_attenuation / self.light.distance
+                light.quadratic_attenuation = self.light.quadratic_attenuation / self.light.distance
 
-            if self.light.falloff_type == 'CONSTANT':
-                light.quadratic_attenuation = 0
-                light.linear_attenuation = 0
+                if self.light.falloff_type == 'CONSTANT':
+                    light.quadratic_attenuation = 0
+                    light.linear_attenuation = 0
 
-            if self.light.falloff_type == 'INVERSE_SQUARE':
-                light.constant_attenuation = 0
-                light.linear_attenuation = 0
+                if self.light.falloff_type == 'INVERSE_SQUARE':
+                    light.constant_attenuation = 0
+                    light.linear_attenuation = 0
 
-            if self.light.falloff_type == 'INVERSE_LINEAR':
-                light.constant_attenuation = 0
-                light.quadratic_attenuation = 0
+                if self.light.falloff_type == 'INVERSE_LINEAR':
+                    light.constant_attenuation = 0
+                    light.quadratic_attenuation = 0
 
         elif self.light.type == 'SUN':
             light.position = (0, 0, 1, 0)  # put light to 0 it will inherit the position from parent transform
@@ -1430,7 +1431,10 @@ use an uv layer '{}' that does not exist on the mesh '{}'; using the first uv ch
         
         uv_textures = mesh.uv_layers
         vertex_colors = mesh.vertex_colors.active
-        mesh.calc_normals_split()
+
+        # since Blender 4.1, no need to update the custom normals anymore
+        if bpy.app.version < (4, 1, 0):
+            mesh.calc_normals_split()
         
         # Check if the mesh has any faces
         if (len(faces) == 0):
