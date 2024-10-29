@@ -95,7 +95,7 @@ class Writer(object):
         return text.encode('utf-8')
 
     def writeMatrix(self, output, matrix):
-        if bpy.app.version[0] >= 2 and bpy.app.version[1] >= 62:
+        if bpy.app.version[0] == 2 and bpy.app.version[1] >= 62 or bpy.app.version[0] >= 3:
             for i in range(0, 4):
                 output.write(self.encode("$##%s %s %s %s\n" % (STRFLT(matrix[0][i]),
                                                                STRFLT(matrix[1][i]),

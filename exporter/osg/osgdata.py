@@ -767,7 +767,7 @@ class Export(object):
 
         # converting to mesh skips shape keys
         if self.config.apply_modifiers and has_non_armature_modifiers and not hasShapeKeys(mesh):
-            mesh_object = mesh.to_mesh(self.config.scene, True, 'PREVIEW')
+            mesh_object = mesh.to_mesh(preserve_all_data_layers=False, depsgraph=None)
         else:
             mesh_object = mesh.data
 
