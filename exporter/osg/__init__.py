@@ -318,11 +318,6 @@ class OSGGUI(bpy.types.Operator, ExportHelper):
         min=0.01, max=1000.0,
         default=1.0,
         )
-    
-    ROTATE_Z_180 : BoolProperty(
-        name="Rotate scene by 180°",
-        default=False
-        )
 
     # def draw(self, context):
     #    pass
@@ -384,7 +379,6 @@ class OSGGUI(bpy.types.Operator, ExportHelper):
         self.TEXTURE_PREFIX = self.config.texture_prefix
         self.EXPORT_ALL_SCENES = self.config.export_all_scenes
         self.SCALE_FACTOR = self.config.scale_factor
-        self.ROTATE_Z_180 = self.config.rotate_z_180
 
         if bpy.data.filepath in self.config.history:
             self.filepath = self.config.history[bpy.data.filepath]
@@ -427,7 +421,6 @@ class OSGGUI(bpy.types.Operator, ExportHelper):
         self.config.export_all_scenes = self.EXPORT_ALL_SCENES
         self.config.osgconv_cleanup = self.OSGCONV_CLEANUP
         self.config.scale_factor = self.SCALE_FACTOR
-        self.config.rotate_z_180 = self.ROTATE_Z_180
         self.config.axis_forward = self.axis_forward
         self.config.axis_up = self.axis_up
 
@@ -480,8 +473,7 @@ class OSGT_PT_export_include(bpy.types.Panel):
         
         col = layout.column(align =  True)
         col.prop(operator, 'SELECTED', text="Selected Objects")
-        col.prop(operator, 'ONLY_VISIBLE', text="Visible Objects")
-        col.prop(operator, 'ROTATE_Z_180', text="Rotate Scene by 180°")        
+        col.prop(operator, 'ONLY_VISIBLE', text="Visible Objects")      
         #col.prop(operator, 'EXPORT_TEXTURES')
         #col.prop(operator, 'EXPORT_ALL_SCENES', text="All Scenes")
         
@@ -512,7 +504,6 @@ class OSGT_PT_export_transform(bpy.types.Panel):
         operator = sfile.active_operator
         
         col = layout.column(align = True)
-        col.prop(operator, 'ROTATE_Z_180', text="Rotate Scene by 180°")
         # col.prop(operator, 'SCALE_FACTOR')
 
 

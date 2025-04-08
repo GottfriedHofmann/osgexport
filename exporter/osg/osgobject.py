@@ -95,9 +95,9 @@ class Writer(object):
         return text.encode('utf-8')
 
     def writeMatrix(self, output, matrix):
-        # TODO: Ugly hack, find out why location is at wrong position in the first place
+        # TODO: Propably a hack, find out why location is at wrong position in the first place
         # Swap the rightmost column (location) with the bottom row for Blender 3.6 and above
-        if bpy.app.version[0] >= 3 and bpy.app.version[1] >= 6:
+        if bpy.app.version[0] == 3 and bpy.app.version[1] >= 6 or bpy.app.version[0] >= 4:
             matrix_copy = matrix.copy()
             # Assign the original rightmost column to the bottom row
             matrix[3] = [matrix_copy[i][3] for i in range(4)]
@@ -644,7 +644,7 @@ class Light(StateAttribute):
     def __init__(self, *args, **kwargs):
         StateAttribute.__init__(self, *args, **kwargs)
         self.light_num = 0
-        self.ambient = (0.0, 0.0, 0.0, 1.0)
+        self.ambient = (0.5, 0.5, 0.5, 1.0)
         self.diffuse = (0.8, 0.8, 0.8, 1.0)
         self.specular = (1.0, 1.0, 1.0, 1.0)
         self.position = (0.0, 0.0, 1.0, 0.0)
@@ -775,7 +775,7 @@ class Material(StateAttribute):
         diffuse_energy = 0.8
         self.colormode = "OFF"
         self.emission = (0.0, 0.0, 0.0, 1.0)
-        self.ambient = (0.0, 0.0, 0.0, 1.0)
+        self.ambient = (0.5, 0.5, 0.5, 1.0)
         self.diffuse = (0.8 * diffuse_energy, 0.8 * diffuse_energy, 0.8 * diffuse_energy, 1.0)
         self.specular = (0.5, 0.5, 0.5, 1.0)
         self.shininess = 40 / (512 / 128)  # blender encode shininess to 512 and opengl to 128
