@@ -38,6 +38,7 @@ from .osgconf import DEBUG
 from . import osgbake
 from . import osgobject
 from .osgobject import *
+from bpy_extras.io_utils import axis_conversion
 osgobject.VERSION = osg.__version__
 
 Euler = mathutils.Euler
@@ -359,7 +360,15 @@ class Export(object):
             osg_object = MatrixTransform()
             osg_object.setName(blender_object.name)
 
-            osg_object.matrix = matrix.copy()
+            global_matrix = axis_conversion(from_forward='-Y',
+                                        from_up='Z',
+                                        to_forward=self.config.axis_forward,
+                                        to_up=self.config.axis_up,
+                                        ).to_4x4()
+            print("Forward axis: " + str(self.config.axis_forward))
+            print(global_matrix)
+
+            osg_object.matrix = global_matrix @ matrix.copy()
             if self.config.zero_translations and parent is None:
                 if bpy.app.version[0] >= 2 and bpy.app.version[1] >= 62:
                     print("zero_translations option has not been converted to blender 2.62")
@@ -469,6 +478,10 @@ class Export(object):
         if use_pose and blender_object in self.rest_armatures:
             setArmaturesPosePosition(self.config.scene, 'REST', [blender_object])
         return skeleton
+    
+    def rotate_180(axis='Z'):
+        ''' Rotate the entire scene by 180°, '''
+        pass
 
     def preProcess(self):
         def lookForAnimatedObjects():
@@ -1179,6 +1192,13 @@ use an uv layer '{}' that does not exist on the mesh '{}'; using the first uv ch
                                                       "[{}, {}, {}]".format(value[0],
                                                                             value[1],
                                                                             value[2])))
+            elif node.type == "BSDF_PRINCIPLED":
+                if not node.inputs["Base Color"].is_linked:
+                    value = node.inputs["Base Color"].default_value
+                    userData.append(StringValueObject("DiffuseColor",
+                                                      "[{}, {}, {}]".format(value[0],
+                                                                            value[1],
+                                                                            value[2])))
             elif node.type == "BSDF_GLOSSY":
                 if not node.inputs["Color"].is_linked:
                     value = node.inputs["Color"].default_value
@@ -1195,19 +1215,22 @@ use an uv layer '{}' that does not exist on the mesh '{}'; using the first uv ch
         if anim:
             self.material_animations[anim.name] = anim
 
-        if mat_source.use_shadeless:
-            stateset.modes["GL_LIGHTING"] = "OFF"
+        if bpy.app.version[0] == 2 and bpy.app.version[1] < 80:
+            if mat_source.use_shadeless:
+                stateset.modes["GL_LIGHTING"] = "OFF"
 
         alpha = 1.0
-        if mat_source.use_transparency:
-            alpha = 1.0 - mat_source.alpha
+        if bpy.app.version[0] == 2 and bpy.app.version[1] < 80:
+            if mat_source.use_transparency:
+                alpha = 1.0 - mat_source.alpha
 
-        refl = mat_source.diffuse_intensity
-        # we premultiply color with intensity to have rendering near blender for opengl fixed pipeline
-        material.diffuse = (mat_source.diffuse_color[0] * refl,
-                            mat_source.diffuse_color[1] * refl,
-                            mat_source.diffuse_color[2] * refl,
-                            alpha)
+        if bpy.app.version[0] == 2 and bpy.app.version[1] < 80:
+            refl = mat_source.diffuse_intensity
+            # we premultiply color with intensity to have rendering near blender for opengl fixed pipeline
+            material.diffuse = (mat_source.diffuse_color[0] * refl,
+                                mat_source.diffuse_color[1] * refl,
+                                mat_source.diffuse_color[2] * refl,
+                                alpha)
 
         # if alpha not 1 then we set the blending mode on
         if DEBUG:
@@ -1215,14 +1238,15 @@ use an uv layer '{}' that does not exist on the mesh '{}'; using the first uv ch
         if alpha != 1.0:
             stateset.modes["GL_BLEND"] = "ON"
 
-        ambient_factor = mat_source.ambient
-        if bpy.context.scene.world:
-            material.ambient = ((bpy.context.scene.world.ambient_color[0]) * ambient_factor,
-                                (bpy.context.scene.world.ambient_color[1]) * ambient_factor,
-                                (bpy.context.scene.world.ambient_color[2]) * ambient_factor,
-                                1.0)
+        if bpy.app.version[0] == 2 and bpy.app.version[1] < 80:
+            ambient_factor = mat_source.ambient
+            if bpy.context.scene.world:
+                material.ambient = ((bpy.context.scene.world.ambient_color[0]) * ambient_factor,
+                                    (bpy.context.scene.world.ambient_color[1]) * ambient_factor,
+                                    (bpy.context.scene.world.ambient_color[2]) * ambient_factor,
+                                    1.0)
         else:
-            material.ambient = (0, 0, 0, 1.0)
+            material.ambient = (0.5, 0.5, 0.5, 1.0)
 
         # we premultiply color with intensity to have rendering near blender for opengl fixed pipeline
         spec = mat_source.specular_intensity
@@ -1231,12 +1255,15 @@ use an uv layer '{}' that does not exist on the mesh '{}'; using the first uv ch
                              mat_source.specular_color[2] * spec,
                              1)
 
-        emissive_factor = mat_source.emit
-        material.emission = (mat_source.diffuse_color[0] * emissive_factor,
-                             mat_source.diffuse_color[1] * emissive_factor,
-                             mat_source.diffuse_color[2] * emissive_factor,
-                             1)
-        material.shininess = (mat_source.specular_hardness / 512.0) * 128.0
+        if bpy.app.version[0] == 2 and bpy.app.version[1] < 80:
+            emissive_factor = mat_source.emit
+            material.emission = (mat_source.diffuse_color[0] * emissive_factor,
+                                mat_source.diffuse_color[1] * emissive_factor,
+                                mat_source.diffuse_color[2] * emissive_factor,
+                                1)
+        
+        if bpy.app.version[0] == 2 and bpy.app.version[1] < 80:
+            material.shininess = (mat_source.specular_hardness / 512.0) * 128.0
 
         material_data = self.createStateSetMaterialData(mat_source, stateset)
 
@@ -1261,7 +1288,8 @@ use an uv layer '{}' that does not exist on the mesh '{}'; using the first uv ch
 
         data = {}
 
-        data["DiffuseIntensity"] = mat_source.diffuse_intensity
+        if bpy.app.version[0] == 2 and bpy.app.version[1] < 80:
+            data["DiffuseIntensity"] = mat_source.diffuse_intensity
         data["DiffuseColor"] = [mat_source.diffuse_color[0],
                                 mat_source.diffuse_color[1],
                                 mat_source.diffuse_color[2]]
@@ -1271,13 +1299,15 @@ use an uv layer '{}' that does not exist on the mesh '{}'; using the first uv ch
                                  mat_source.specular_color[1],
                                  mat_source.specular_color[2]]
 
-        data["SpecularHardness"] = mat_source.specular_hardness
+        if bpy.app.version[0] == 2 and bpy.app.version[1] < 80:
+            data["SpecularHardness"] = mat_source.specular_hardness
 
-        if mat_source.use_shadeless:
-            data["Shadeless"] = True
-        else:
-            data["Emit"] = mat_source.emit
-            data["Ambient"] = mat_source.ambient
+        if bpy.app.version[0] == 2 and bpy.app.version[1] < 80:
+            if mat_source.use_shadeless:
+                data["Shadeless"] = True
+            else:
+                data["Emit"] = mat_source.emit
+                data["Ambient"] = mat_source.ambient
         data["Translucency"] = mat_source.translucency
         data["DiffuseShader"] = mat_source.diffuse_shader
         data["SpecularShader"] = mat_source.specular_shader

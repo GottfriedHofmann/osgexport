@@ -95,6 +95,17 @@ class Writer(object):
         return text.encode('utf-8')
 
     def writeMatrix(self, output, matrix):
+        # TODO: Ugly hack, find out why location is at wrong position in the first place
+        # Swap the rightmost column (location) with the bottom row for Blender 3.6 and above
+        if bpy.app.version[0] >= 3 and bpy.app.version[1] >= 6:
+            matrix_copy = matrix.copy()
+            # Assign the original rightmost column to the bottom row
+            matrix[3] = [matrix_copy[i][3] for i in range(4)]
+
+            # Assign the bottom row to the rightmost column
+            for i in range(4):
+                matrix[i][3] = matrix_copy[3][i]
+
         if bpy.app.version[0] >= 2 and bpy.app.version[1] >= 62:
             for i in range(0, 4):
                 output.write(self.encode("$##%s %s %s %s\n" % (STRFLT(matrix[0][i]),

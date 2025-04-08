@@ -21,12 +21,19 @@ import os
 import bpy
 import pickle
 import argparse
-from bpy_extras.io_utils import ExportHelper
+# from bpy_extras.io_utils import ExportHelper
+from bpy_extras.io_utils import (
+    ImportHelper,
+    ExportHelper,
+    orientation_helper,
+    axis_conversion,
+)
+from bpy.props import EnumProperty
 
 bl_info = {
     "name": "Export OpenSceneGraph format (.osgt)",
     "author": "Cedric Pinson, Jeremy Moles, Peter Amstutz, OpenMW, Gottfried Hofmann",
-    "version": (0, 15, 1),
+    "version": (0, 15, 2),
     "blender": (2, 93, 0),
     "api": 36339,
     "location": "File > Export > OSG Model (*.osgt)",
@@ -153,7 +160,7 @@ if "FILE_PATH" in bpy.types.Property.bl_rna.properties['subtype'].enum_items.key
 else:
     FILE_NAME = "FILE_NAME"
 
-
+@orientation_helper(axis_forward='Y', axis_up='Z')
 class OSGGUI(bpy.types.Operator, ExportHelper):
     '''Export model data to an OpenSceneGraph file'''
     bl_idname = "osg.export"
@@ -311,9 +318,30 @@ class OSGGUI(bpy.types.Operator, ExportHelper):
         min=0.01, max=1000.0,
         default=1.0,
         )
+    
+    ROTATE_Z_180 : BoolProperty(
+        name="Rotate scene by 180°",
+        default=False
+        )
+
+    # def draw(self, context):
+    #    pass
 
     def draw(self, context):
-        pass
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = True
+        
+        sfile = context.space_data
+        operator = sfile.active_operator
+        
+        col = layout.column(align =  True)
+        col.prop(self, "axis_forward")
+        col.prop(self, "axis_up")
+        col.prop(operator, 'SELECTED', text="Selected Objects")
+        col.prop(operator, 'ONLY_VISIBLE', text="Visible Objects")
+        col.prop(operator, 'APPLYMODIFIERS', text="Apply Modifiers")
+        
 
     def invoke(self, context, event):
         print("config is " + bpy.utils.user_resource('CONFIG'))
@@ -356,6 +384,7 @@ class OSGGUI(bpy.types.Operator, ExportHelper):
         self.TEXTURE_PREFIX = self.config.texture_prefix
         self.EXPORT_ALL_SCENES = self.config.export_all_scenes
         self.SCALE_FACTOR = self.config.scale_factor
+        self.ROTATE_Z_180 = self.config.rotate_z_180
 
         if bpy.data.filepath in self.config.history:
             self.filepath = self.config.history[bpy.data.filepath]
@@ -363,6 +392,8 @@ class OSGGUI(bpy.types.Operator, ExportHelper):
         return super(OSGGUI, self).invoke(context, event)
 
     def execute(self, context):
+        print("Forward axis:", self.axis_forward)
+        print("Up axis:", self.axis_up)
         if not self.filepath:
             raise Exception("filepath not set")
 
@@ -396,6 +427,9 @@ class OSGGUI(bpy.types.Operator, ExportHelper):
         self.config.export_all_scenes = self.EXPORT_ALL_SCENES
         self.config.osgconv_cleanup = self.OSGCONV_CLEANUP
         self.config.scale_factor = self.SCALE_FACTOR
+        self.config.rotate_z_180 = self.ROTATE_Z_180
+        self.config.axis_forward = self.axis_forward
+        self.config.axis_up = self.axis_up
 
         try:
             cfg = os.path.join(bpy.utils.user_resource('CONFIG'), "osgExport.cfg")
@@ -447,6 +481,7 @@ class OSGT_PT_export_include(bpy.types.Panel):
         col = layout.column(align =  True)
         col.prop(operator, 'SELECTED', text="Selected Objects")
         col.prop(operator, 'ONLY_VISIBLE', text="Visible Objects")
+        col.prop(operator, 'ROTATE_Z_180', text="Rotate Scene by 180°")        
         #col.prop(operator, 'EXPORT_TEXTURES')
         #col.prop(operator, 'EXPORT_ALL_SCENES', text="All Scenes")
         
@@ -476,7 +511,8 @@ class OSGT_PT_export_transform(bpy.types.Panel):
         sfile = context.space_data
         operator = sfile.active_operator
         
-        col = layout.column(align = False)        
+        col = layout.column(align = True)
+        col.prop(operator, 'ROTATE_Z_180', text="Rotate Scene by 180°")
         # col.prop(operator, 'SCALE_FACTOR')
 
 
@@ -654,9 +690,9 @@ class OSGT_PT_export_extra(bpy.types.Panel):
     
 classes = (
     OSGGUI,
-    OSGT_PT_export_include,
+    # OSGT_PT_export_include,
     # OSGT_PT_export_transform,
-    OSGT_PT_export_geometry,
+    # OSGT_PT_export_geometry,
     OSGT_PT_export_armature,
     #OSGT_PT_export_material,
     OSGT_PT_export_animation,

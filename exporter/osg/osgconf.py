@@ -83,6 +83,10 @@ class Config(object):
         self.defaultattr("json_materials", False)
         self.defaultattr("json_shaders", False)
 
+        self.defaultattr("rotate_z_180", False)
+        self.defaultattr("axis_forward", 'Y')
+        self.defaultattr("axis_up", 'Z')
+
         self.filepath = ""
         self.fullpath = ""
         self.exclude_objects = []
