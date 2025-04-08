@@ -360,15 +360,14 @@ class Export(object):
             osg_object = MatrixTransform()
             osg_object.setName(blender_object.name)
 
-            global_matrix = axis_conversion(from_forward='-Y',
+            # Since the axis convention of other programs can differ from Blender, we need 
+            global_conversion_matrix = axis_conversion(from_forward='-Y',
                                         from_up='Z',
                                         to_forward=self.config.axis_forward,
                                         to_up=self.config.axis_up,
                                         ).to_4x4()
-            print("Forward axis: " + str(self.config.axis_forward))
-            print(global_matrix)
 
-            osg_object.matrix = global_matrix @ matrix.copy()
+            osg_object.matrix = global_conversion_matrix @ matrix.copy()
             if self.config.zero_translations and parent is None:
                 if bpy.app.version[0] >= 2 and bpy.app.version[1] >= 62:
                     print("zero_translations option has not been converted to blender 2.62")
@@ -1238,15 +1237,7 @@ use an uv layer '{}' that does not exist on the mesh '{}'; using the first uv ch
         if alpha != 1.0:
             stateset.modes["GL_BLEND"] = "ON"
 
-        if bpy.app.version[0] == 2 and bpy.app.version[1] < 80:
-            ambient_factor = mat_source.ambient
-            if bpy.context.scene.world:
-                material.ambient = ((bpy.context.scene.world.ambient_color[0]) * ambient_factor,
-                                    (bpy.context.scene.world.ambient_color[1]) * ambient_factor,
-                                    (bpy.context.scene.world.ambient_color[2]) * ambient_factor,
-                                    1.0)
-        else:
-            material.ambient = (0.5, 0.5, 0.5, 1.0)
+        material.ambient = (0.5, 0.5, 0.5, 1.0)
 
         # we premultiply color with intensity to have rendering near blender for opengl fixed pipeline
         spec = mat_source.specular_intensity
@@ -1307,7 +1298,7 @@ use an uv layer '{}' that does not exist on the mesh '{}'; using the first uv ch
                 data["Shadeless"] = True
             else:
                 data["Emit"] = mat_source.emit
-                data["Ambient"] = mat_source.ambient
+        data["Ambient"] = mat_source.ambient
         data["Translucency"] = mat_source.translucency
         data["DiffuseShader"] = mat_source.diffuse_shader
         data["SpecularShader"] = mat_source.specular_shader
