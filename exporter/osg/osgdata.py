@@ -360,7 +360,7 @@ class Export(object):
             osg_object = MatrixTransform()
             osg_object.setName(blender_object.name)
 
-            # Since the axis convention of other programs can differ from Blender, we need 
+            # Since the axis convention of other programs can differ from Blender
             global_conversion_matrix = axis_conversion(from_forward='-Y',
                                         from_up='Z',
                                         to_forward=self.config.axis_forward,
@@ -1187,6 +1187,7 @@ use an uv layer '{}' that does not exist on the mesh '{}'; using the first uv ch
             if node.type == "BSDF_DIFFUSE":
                 if not node.inputs["Color"].is_linked:
                     value = node.inputs["Color"].default_value
+                    material.diffuse = value
                     userData.append(StringValueObject("DiffuseColor",
                                                       "[{}, {}, {}]".format(value[0],
                                                                             value[1],
@@ -1194,6 +1195,7 @@ use an uv layer '{}' that does not exist on the mesh '{}'; using the first uv ch
             elif node.type == "BSDF_PRINCIPLED":
                 if not node.inputs["Base Color"].is_linked:
                     value = node.inputs["Base Color"].default_value
+                    material.diffuse = value
                     userData.append(StringValueObject("DiffuseColor",
                                                       "[{}, {}, {}]".format(value[0],
                                                                             value[1],
