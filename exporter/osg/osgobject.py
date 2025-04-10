@@ -790,14 +790,14 @@ class Material(StateAttribute):
 
     def serializeContent(self, output):
         StateAttribute.serializeContent(self, output)
-        output.write(self.encode("$#Ambient TRUE Front %s %s %s %s Back %s %s %s %s\n" % (STRFLT(self.ambient[0]),
-                                                                                          STRFLT(self.ambient[1]),
-                                                                                          STRFLT(self.ambient[2]),
-                                                                                          STRFLT(self.ambient[3]),
-                                                                                          STRFLT(self.ambient[0]),
-                                                                                          STRFLT(self.ambient[1]),
-                                                                                          STRFLT(self.ambient[2]),
-                                                                                          STRFLT(self.ambient[3]))))
+        output.write(self.encode("$#Ambient TRUE Front %s %s %s %s Back %s %s %s %s\n" % (STRFLT(self.ambient[0]*self.diffuse[0]),
+                                                                                          STRFLT(self.ambient[1]*self.diffuse[1]),
+                                                                                          STRFLT(self.ambient[2]*self.diffuse[2]),
+                                                                                          STRFLT(self.ambient[3]*self.diffuse[3]),
+                                                                                          STRFLT(self.ambient[0]*self.diffuse[0]),
+                                                                                          STRFLT(self.ambient[1]*self.diffuse[1]),
+                                                                                          STRFLT(self.ambient[2]*self.diffuse[2]),
+                                                                                          STRFLT(self.ambient[3]*self.diffuse[3]))))
 
         output.write(self.encode("$#Diffuse TRUE Front %s %s %s %s Back %s %s %s %s\n" % (STRFLT(self.diffuse[0]),
                                                                                           STRFLT(self.diffuse[1]),

@@ -626,6 +626,12 @@ class Export(object):
         self.root.setName("Root")
         self.root.children = self.items
         self.root.getOrCreateUserData().append(StringValueObject("source", "blender"))
+        # TODO: The following is an ugly hack, find out where this can actually
+        # self.root.getOrCreateUserData().append(StringValueObject("00_UsePremultiplyAlpha", "false"))
+        # self.root.getOrCreateUserData().append(StringValueObject("00_UseAlpha", "true"))
+        # self.root.getOrCreateUserData().append(StringValueObject("00_DiffuseColor", "1.0"))
+        # self.root.getOrCreateUserData().append(StringValueObject("00_BlendType", "MIX"))
+        
         if len(self.animations) > 0:
             animation_manager = BasicAnimationManager()
             animation_manager.animations = self.animations
@@ -779,7 +785,8 @@ class Export(object):
 
         # converting to mesh skips shape keys
         if self.config.apply_modifiers and has_non_armature_modifiers and not hasShapeKeys(mesh):
-            mesh_object = mesh.to_mesh(self.config.scene, True, 'PREVIEW')
+            # mesh_object = mesh.to_mesh(self.config.scene, True, 'PREVIEW')
+            mesh_object = mesh.to_mesh()
         else:
             mesh_object = mesh.data
 
@@ -1091,6 +1098,11 @@ use an uv layer '{}' that does not exist on the mesh '{}'; using the first uv ch
             osg_object.dataVariance = "STATIC"
             osg_object.setName(mat_source.name)
             osg_object.getOrCreateUserData().append(StringValueObject("source", "blender"))
+            # TODO: The following is an ugly hack, find out where this can actually
+            osg_object.getOrCreateUserData().append(StringValueObject("00_UsePremultiplyAlpha", "false"))
+            osg_object.getOrCreateUserData().append(StringValueObject("00_UseAlpha", "true"))
+            osg_object.getOrCreateUserData().append(StringValueObject("00_DiffuseColor", "1.0"))
+            osg_object.getOrCreateUserData().append(StringValueObject("00_BlendType", "MIX"))                                                                          
 
         if mat_source.use_nodes is True:
             self.createStateSetShaderNode(mat_source, stateset, material)
@@ -1106,7 +1118,7 @@ use an uv layer '{}' that does not exist on the mesh '{}'; using the first uv ch
         if self.config.json_shaders:
             self.createStateSetShaderNodeJSON(mat_source, stateset, material)
         else:
-            self.createStateSetShaderNodeUserData(mat_source, material)
+            self.createStateSetShaderNodeUserData(mat_source, material, stateset)
 
     def createStateSetShaderNodeJSON(self, mat_source, stateset, material):
         """
@@ -1179,7 +1191,7 @@ use an uv layer '{}' that does not exist on the mesh '{}'; using the first uv ch
 
         material.getOrCreateUserData().append(StringValueObject("NodeTree", json.dumps(tree)))
 
-    def createStateSetShaderNodeUserData(self, mat_source, material):
+    def createStateSetShaderNodeUserData(self, mat_source, material,stateset):
         """
         reads a shadernode to a basic material
         """
@@ -1194,13 +1206,39 @@ use an uv layer '{}' that does not exist on the mesh '{}'; using the first uv ch
                                                                             value[1],
                                                                             value[2])))
             elif node.type == "BSDF_PRINCIPLED":
-                if not node.inputs["Base Color"].is_linked:
-                    value = node.inputs["Base Color"].default_value
+                base_color_input = node.inputs["Base Color"]
+                value = base_color_input.default_value
+                value_spec_tint = node.inputs["Specular Tint"].default_value
+                if not base_color_input.is_linked:                    
                     material.diffuse = value
-                    userData.append(StringValueObject("DiffuseColor",
-                                                      "[{}, {}, {}]".format(value[0],
-                                                                            value[1],
-                                                                            value[2])))
+                else:
+                    # for the time being support only one directly linked image texture node
+                    # the texture values are getting mixed with the diffuse, set to 1.0 to get the original colors of the texture
+                    material.diffuse = [1.0, 1.0, 1.0, 1.0]
+                    material.ambient = [1.0, 1.0, 1.0, 1.0]
+                    source_node = base_color_input.links[0].from_node
+                    texture = self.createTexture2DFromNode(source_node)
+                    stateset.texture_attributes.setdefault(0, []).append(texture)
+                userData.append(StringValueObject("Emit", node.inputs["Emission Strength"].default_value))
+                userData.append(StringValueObject("DiffuseShader", "LAMBERT"))
+                userData.append(StringValueObject("DiffuseIntensity", "1.0"))
+                userData.append(StringValueObject("SpecularColor",
+                                                    "[{}, {}, {}]".format(value_spec_tint,
+                                                                        value_spec_tint,
+                                                                        value_spec_tint)))
+                userData.append(StringValueObject("SpecularShader", "COOKTORR"))
+                userData.append(StringValueObject("Translucency", "0.0"))
+                userData.append(StringValueObject("SpecularIntensity", "0.5"))
+                userData.append(StringValueObject("DiffuseColor",
+                                                    "[{}, {}, {}]".format(value[0],
+                                                                        value[1],
+                                                                        value[2])))
+                userData.append(StringValueObject("SpecularHardness", "130"))
+                userData.append(StringValueObject("Ambient", "1.0"))
+                # userData.append(StringValueObject("00_UsePremultiplyAlpha", False))
+                # userData.append(StringValueObject("00_UseAlpha", True))                
+                # userData.append(StringValueObject("00_BlendType", "MIX"))
+
             elif node.type == "BSDF_GLOSSY":
                 if not node.inputs["Color"].is_linked:
                     value = node.inputs["Color"].default_value

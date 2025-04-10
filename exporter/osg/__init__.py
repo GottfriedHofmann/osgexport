@@ -336,6 +336,9 @@ class OSGGUI(bpy.types.Operator, ExportHelper):
         col.prop(operator, 'SELECTED', text="Selected Objects")
         col.prop(operator, 'ONLY_VISIBLE', text="Visible Objects")
         col.prop(operator, 'APPLYMODIFIERS', text="Apply Modifiers")
+        # col.prop(operator, 'OSGCONV_EMBED_TEXTURES', text="Embed Textures")
+        # col.prop(operator, 'JSON_MATERIALS', text="Create JSON Material definition")
+        # col.prop(operator, 'JSON_SHADERS')
         
 
     def invoke(self, context, event):
